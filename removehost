@@ -1,0 +1,102 @@
+#!/usr/bin/perl
+
+my $host;
+my $backup = 1;
+
+sub usage 
+{
+	print "Usage: $0 <IP or hostname> OR $0 --host <IP or hostname> [--nobackup]\n\n";
+	print "--host - the IP or hostname to remove from the known_hosts file.\n";
+	print "--nobackup - remove the IP or hostname without backing up the known_hosts file.\n";
+	print "--help - prints out this message.\n";
+}
+
+if (scalar @ARGV == 1) {
+	$host = shift;
+	chomp $host;
+} else {
+	$count = scalar @ARGV;
+	while ($count > 0) {
+		my $param = shift;
+		if (param eq "--help" ) {
+			usage();
+			exit 0;
+		} else {
+			if ($param eq "--host") {
+				$host = shift;
+				$count -= 2;
+			} else {
+			if ($param eq "--nobackup" ){
+				$backup = 0;
+				$count--;
+			} else {
+				print "ERROR: unknown paramater $param\n";
+				usage();
+				exit 1;
+				}
+			}
+		}
+	}
+}
+
+if (!$host) {
+	print "ERROR: No hostname or IP specified!\n";
+	usage();
+	exit 2;
+}
+
+if ($host eq "--help")
+{
+	usage();
+	exit 0;
+}
+
+if (!$host) {
+	print "Usage: $0 <IP/hostname>\n";
+	exit 1;
+}
+
+my @hosts;
+my $ssh_file = glob("~/.ssh/known_hosts");
+my $copy_file = glob("~/.ssh/known_hosts.bak");
+
+open (my $fh, '<', $ssh_file) or die "ERROR: Unable to open $ssh_file for reading!\n";
+my $copy;
+if ($backup && (!open ($copy, '>', $copy_file) )) {
+	print "ERROR: Unable to open copy file. Continue? (y/N)\n";
+	my $answer = <STDIN>;
+	chomp $answer;
+	if (($answer ne 'y') && ($answer ne 'Y')) {
+		print "OK. Exiting...\n";
+		exit 0;
+	}
+}
+
+my $linecount = 0;
+print "Going to remove all references to $host from $ssh_file\n";
+while (my $line = <$fh>) {
+	if ($copy) {
+		print $copy $line;
+	}
+	if ($line !~ /$host/) { 
+#		print "$line preserved.\n";
+		push @hosts, $line;
+	} else {
+		print "$line removed.\n";
+		$linecount++;
+	}
+}
+
+close $fh;
+
+#$ssh_file = glob("~/.ssh/new_hosts");
+
+open ($fh, '>', $ssh_file) or die "ERROR: Unable to open $ssh_file for writing!\n";
+
+foreach my $addr (@hosts) {
+	print $fh $addr;
+}
+
+print "$linecount lines removed from $ssh_file.\n";
+
+close $fh;
